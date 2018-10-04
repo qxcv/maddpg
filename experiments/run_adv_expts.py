@@ -35,12 +35,11 @@ parser.add_argument(
 def launch_train(args):
     cmdline = ['python', TRAIN_SCRIPT] + list(str(a) for a in args)
     print('Spawning', ' '.join(cmdline))
-    # FIXME: change this around
-    # return subprocess.Popen(
-    #     cmdline,
-    #     universal_newlines=True,
-    #     stdout=subprocess.PIPE,
-    #     stderr=subprocess.PIPE)
+    return subprocess.Popen(
+        cmdline,
+        universal_newlines=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
 
 
 def wait_all(procs):
