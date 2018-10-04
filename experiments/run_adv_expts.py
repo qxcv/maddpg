@@ -7,12 +7,16 @@ import os
 import pickle
 import subprocess
 
+import numpy as np
+import skimage.io
+import skimage.morphology
+import skvideo.io
 import tqdm
 
 # all of the supported domains
 DOMAINS = ('adv_cliff', 'adv_gravity', 'adv_race')
 STAGES = ('train', 'benchmark', 'movie',
-          'mktable', 'mkcurves', 'mkmontage')
+          'mktables', 'mkcurves', 'mkcomposites')
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 TRAIN_SCRIPT = os.path.join(THIS_DIR, 'train.py')
 
@@ -181,7 +185,7 @@ def stage_benchmark(args):
                 'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
                 '--benchmark'
             ])
-        all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
+            all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
     wait_all(all_procs)
 
 
@@ -240,11 +244,14 @@ def stage_movie(args):
                 'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
                 '--movie'
             ], xvfb=True)
-        all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
+            all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
+            # HACK rate-limiting so I can run this on my crummy laptop
+            print('\n\nWAITING\n\n')
+            all_procs[-1].wait()
     wait_all(all_procs)
 
 
-def stage_mktable(args):
+def stage_mktables(args):
     """Make one row out of a table of benchmark results."""
     raise NotImplementedError()
 
@@ -254,10 +261,82 @@ def stage_mkcurves(args):
     raise NotImplementedError()
 
 
-def stage_mkmontage(args):
-    """Make some random rollout montages for each combination of method &
+def blend_frames(frames, subsample=1):
+    """Blend together a T*H*W*C (type uint8) volume of video frames taken in
+    front of a static background. Should yield decent results for my
+    environments, but no guarantees outside of there."""
+    if subsample:
+        # subsample in convoluted way to ensure we always get last frame
+        frames = frames[::-1][::subsample][::-1]
+    med_frame = np.median(frames, axis=0)
+    # our job is to find weights for frames st frames average out in the end
+    frame_weights = np.zeros(frames.shape[:3] + (1,))
+    for frame_idx, frame in enumerate(frames):
+        pixel_dists = np.linalg.norm(frame - med_frame, axis=2)
+        diff_pixel_mask = pixel_dists > 0.05
+        # fade in by a few pixels
+        for i in range(4):
+            eroded = skimage.morphology.erosion(diff_pixel_mask)
+            diff_pixel_mask = 0.5 * eroded + 0.5 * diff_pixel_mask
+        frame_weights[frame_idx, :, :, 0] = diff_pixel_mask
+    # give later frames a bonus for blending over top of others
+    # (edit: removed this because it led to ugly artefacts in some places)
+    # frame_range = np.arange(len(frames)) \
+    #     .reshape(-1, 1, 1, 1).astype('float32')
+    # frame_weights *= 1 + frame_range
+    # normalise frame weights while avoiding division by zero
+    frame_weight_sums = frame_weights.sum(axis=0)[None, ...]
+    frame_weights = np.divide(
+        frame_weights,
+        frame_weight_sums,
+        where=frame_weight_sums > 0)
+    # now denormalize so that later frames get brighter than earlier
+    # ones
+    n = len(frame_weights)
+    min_alpha = 0.6
+    age_descale = min_alpha + (1 - min_alpha) * np.arange(n) / (n - 1)
+    age_descale = age_descale.reshape((-1, 1, 1, 1))
+    frame_weights = frame_weights * age_descale
+    frame_weight_sums = frame_weights.sum(axis=0)
+    # finally blend
+    combined_frames = np.sum(frames * frame_weights, axis=0)
+    combined_frames += med_frame * (1 - frame_weight_sums)
+    # clip bad pixel values
+    combined_frames[combined_frames < 0] = 0
+    combined_frames[combined_frames > 1] = 1
+    return combined_frames
+
+
+def load_video(vid_path):
+    byte_vid = skvideo.io.vread(vid_path)
+    float_vid = byte_vid.astype('float32') / 255.0
+    return float_vid
+
+
+def stage_mkcomposites(args):
+    """Make some random rollout composites for each combination of method &
     original/noadv/transfer environment."""
-    raise NotImplementedError()
+    # first find all relevant videos with a directory walk
+    vid_paths = []
+    for root_dir, _, filenames in os.walk('./data/'):
+        basename = os.path.basename(root_dir.rstrip(os.sep))
+        if basename != 'movie_files':
+            continue
+        for filename in filenames:
+            if not filename.endswith('.mp4'):
+                continue
+            vid_path = os.path.join(root_dir, filename)
+            vid_paths.append(vid_path)
+    # now blend each of the videos and place a new image in corresponding
+    # directory
+    print('Found %d videos; will write composites now' % len(vid_paths))
+    for vid_num, vid_path in enumerate(vid_paths, start=1):
+        video = load_video(vid_path)
+        composite = blend_frames(video, subsample=3)
+        prefix, _ = os.path.splitext(vid_path)
+        out_path = prefix + '_composite.png'
+        print('[%d/%d] Writing %s' % (vid_num, len(vid_paths), out_path))
+        skimage.io.imsave(out_path, composite)
 
 
 def main(args):

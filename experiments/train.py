@@ -90,7 +90,7 @@ def parse_args():
     parser.add_argument(
         "--movie-iters",
         type=int,
-        default=1000,
+        default=500,
         help="number of iterations to use when making movies")
     parser.add_argument(
         "--save-dir",
@@ -267,6 +267,23 @@ def train(arglist):
             # appended to agent_info
             this_agent_info = agent_info[-1]
 
+            if arglist.movie:
+                frame, = env.render(mode='rgb_array')
+                if movie_writer is None:
+                    os.makedirs(arglist.movie_dir, exist_ok=True)
+                    movie_name = os.path.join(
+                        arglist.movie_dir,
+                        arglist.exp_name + '_%d.mp4' % episodes_seen)
+                    movie_writer = skvideo.io.FFmpegWriter(movie_name)
+                movie_writer.writeFrame(frame)
+                if done or terminal:
+                    if movie_writer is not None:
+                        movie_writer.close()
+                        movie_writer = None
+                    if train_step > arglist.movie_iters:
+                        # we're done!
+                        break
+
             if done or terminal:
                 obs_n = env.reset()
                 episodes_seen += 1
@@ -296,21 +313,8 @@ def train(arglist):
                 continue
 
             if arglist.movie:
-                frame, = env.render(mode='rgb_array')
-                if movie_writer is None:
-                    os.makedirs(arglist.movie_dir, exist_ok=True)
-                    movie_name = os.path.join(
-                        arglist.movie_dir,
-                        arglist.exp_name + '_%d.mp4' % episodes_seen)
-                    movie_writer = skvideo.io.FFmpegWriter(movie_name)
-                movie_writer.writeFrame(frame)
-                if done or terminal:
-                    if movie_writer is not None:
-                        movie_writer.close()
-                        movie_writer = None
-                    if train_step > arglist.movie_iters:
-                        # we're done!
-                        break
+                # don't bother doing anything else in the loop
+                continue
 
             # for displaying learned policies
             if arglist.display:
