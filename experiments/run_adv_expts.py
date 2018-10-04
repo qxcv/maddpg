@@ -35,11 +35,12 @@ parser.add_argument(
 def launch_train(args):
     cmdline = ['python', TRAIN_SCRIPT] + list(str(a) for a in args)
     print('Spawning', ' '.join(cmdline))
-    return subprocess.Popen(
-        cmdline,
-        universal_newlines=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+    # FIXME: change this around
+    # return subprocess.Popen(
+    #     cmdline,
+    #     universal_newlines=True,
+    #     stdout=subprocess.PIPE,
+    #     stderr=subprocess.PIPE)
 
 
 def wait_all(procs):
@@ -125,7 +126,59 @@ def stage_train(args):
 def stage_benchmark(args):
     """Benchmark all configurations on original, noadv, and transfer
     environments."""
-    raise NotImplementedError()
+    all_procs = []
+    for i in range(args.ntrain):
+        suff = 'maddpg_policy/snapshot-49200'
+        dom = args.domain
+        maddpg_proc = launch_train([
+            '--scenario',
+            dom,
+            '--num-adversaries',
+            1,
+            '--save-root',
+            'data/%s/maddpg-%d/' % (dom, i),
+            '--exp-name',
+            'results',
+            '--load',
+            'data/%s/maddpg-%d/maddpg-only/%s' % (dom, i, suff),
+            '--benchmark'
+        ])
+        ddpg_adv_proc = launch_train([
+            '--scenario',
+            dom,
+            '--num-adversaries',
+            1,
+            '--adv-policy',
+            'ddpg',
+            '--good-policy',
+            'ddpg',
+            '--save-root',
+            'data/%s/ddpg-only-adv-%d/' % (dom, i),
+            '--exp-name',
+            'results',
+            '--load',
+            'data/%s/ddpg-only-adv-%d/maddpg-only/%s' % (dom, i, suff),
+            '--benchmark'
+        ])
+        ddpg_nulladv_proc = launch_train([
+            '--scenario',
+            dom + '_nulladv',
+            '--num-adversaries',
+            1,
+            '--adv-policy',
+            'ddpg',
+            '--good-policy',
+            'ddpg',
+            '--save-root',
+            'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
+            '--exp-name',
+            'results',
+            '--load',
+            'data/%s/ddpg-only-nulladv-%d/maddpg-only/%s' % (dom, i, suff),
+            '--benchmark'
+        ])
+        all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
+    wait_all(all_procs)
 
 
 def stage_mktable(args):
