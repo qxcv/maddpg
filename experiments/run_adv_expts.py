@@ -128,55 +128,56 @@ def stage_benchmark(args):
     environments."""
     all_procs = []
     for i in range(args.ntrain):
-        suff = 'maddpg_policy/snapshot-49200'
-        dom = args.domain
-        maddpg_proc = launch_train([
-            '--scenario',
-            dom,
-            '--num-adversaries',
-            1,
-            '--save-root',
-            'data/%s/maddpg-%d/' % (dom, i),
-            '--exp-name',
-            'results',
-            '--load',
-            'data/%s/maddpg-%d/maddpg-only/%s' % (dom, i, suff),
-            '--benchmark'
-        ])
-        ddpg_adv_proc = launch_train([
-            '--scenario',
-            dom,
-            '--num-adversaries',
-            1,
-            '--adv-policy',
-            'ddpg',
-            '--good-policy',
-            'ddpg',
-            '--save-root',
-            'data/%s/ddpg-only-adv-%d/' % (dom, i),
-            '--exp-name',
-            'results',
-            '--load',
-            'data/%s/ddpg-only-adv-%d/maddpg-only/%s' % (dom, i, suff),
-            '--benchmark'
-        ])
-        ddpg_nulladv_proc = launch_train([
-            '--scenario',
-            dom + '_nulladv',
-            '--num-adversaries',
-            1,
-            '--adv-policy',
-            'ddpg',
-            '--good-policy',
-            'ddpg',
-            '--save-root',
-            'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
-            '--exp-name',
-            'results',
-            '--load',
-            'data/%s/ddpg-only-nulladv-%d/maddpg-only/%s' % (dom, i, suff),
-            '--benchmark'
-        ])
+        for expt in 'nulladv', 'transfer':
+            suff = 'maddpg_policy/snapshot-49200'
+            dom = args.domain
+            maddpg_proc = launch_train([
+                '--scenario',
+                dom + '_' + expt,
+                '--num-adversaries',
+                1,
+                '--save-root',
+                'data/%s/maddpg-%d/' % (dom, i),
+                '--exp-name',
+                'results_' + expt,
+                '--load',
+                'data/%s/maddpg-%d/%s' % (dom, i, suff),
+                '--benchmark'
+            ])
+            ddpg_adv_proc = launch_train([
+                '--scenario',
+                dom + '_' + expt,
+                '--num-adversaries',
+                1,
+                '--adv-policy',
+                'ddpg',
+                '--good-policy',
+                'ddpg',
+                '--save-root',
+                'data/%s/ddpg-only-adv-%d/' % (dom, i),
+                '--exp-name',
+                'results_' + expt,
+                '--load',
+                'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff),
+                '--benchmark'
+            ])
+            ddpg_nulladv_proc = launch_train([
+                '--scenario',
+                dom + '_' + expt,
+                '--num-adversaries',
+                1,
+                '--adv-policy',
+                'ddpg',
+                '--good-policy',
+                'ddpg',
+                '--save-root',
+                'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
+                '--exp-name',
+                'results_' + expt,
+                '--load',
+                'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
+                '--benchmark'
+            ])
         all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
     wait_all(all_procs)
 

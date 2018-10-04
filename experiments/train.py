@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--benchmark-iters",
         type=int,
-        default=10000,
+        default=100000,
         help="number of iterations run for benchmarking")
     parser.add_argument(
         "--save-root",
@@ -251,6 +251,9 @@ def train(arglist):
                 episode_rewards.append(0)
                 for a in agent_rewards:
                     a.append(0)
+                # WTF?! Last step from each episode will be prepended to
+                # beginning of next episode! WTF! okay, adding agent_info HACK
+                # below
                 agent_info.append([[]])
 
             # increment global step counter
@@ -259,7 +262,11 @@ def train(arglist):
             # for benchmarking learned policies
             if arglist.benchmark:
                 for i, info in enumerate(info_n):
-                    agent_info[-1][i].append(info_n['n'])
+                    # this is agent_info HACK mentioned above
+                    if done or terminal:
+                        agent_info[-2][i].append(info_n['n'])
+                    else:
+                        agent_info[-1][i].append(info_n['n'])
                 if train_step > arglist.benchmark_iters and (done or terminal):
                     file_name = os.path.join(
                         arglist.benchmark_dir, arglist.exp_name + '.pkl')
