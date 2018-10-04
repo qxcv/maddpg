@@ -1,9 +1,12 @@
-import os
 import argparse
-import numpy as np
-import tensorflow as tf
-import time
+import os
 import pickle
+import time
+
+import numpy as np
+import skvideo
+import skvideo.io
+import tensorflow as tf
 
 import maddpg.common.tf_util as U
 from maddpg.trainer.maddpg import MADDPGAgentTrainer
@@ -75,10 +78,20 @@ def parse_args():
         default="benchmark_files/",
         help="subdirectory where benchmark data is saved")
     parser.add_argument(
+        "--movie-dir",
+        type=str,
+        default="movie_files/",
+        help="subdirectory where movies are saved")
+    parser.add_argument(
         "--plots-dir",
         type=str,
         default="learning_curves/",
         help="subdirectory where plot data is saved")
+    parser.add_argument(
+        "--movie-iters",
+        type=int,
+        default=1000,
+        help="number of iterations to use when making movies")
     parser.add_argument(
         "--save-dir",
         type=str,
@@ -98,9 +111,11 @@ def parse_args():
     parser.add_argument("--restore", action="store_true", default=False)
     parser.add_argument("--display", action="store_true", default=False)
     parser.add_argument("--benchmark", action="store_true", default=False)
+    parser.add_argument("--movie", action="store_true", default=False)
     args = parser.parse_args()
     args.save_dir = os.path.join(args.save_root, args.save_dir)
     args.benchmark_dir = os.path.join(args.save_root, args.benchmark_dir)
+    args.movie_dir = os.path.join(args.save_root, args.movie_dir)
     args.plots_dir = os.path.join(args.save_root, args.plots_dir)
     return args
 
@@ -203,8 +218,12 @@ def train(arglist):
             raise NotImplementedError(
                 "need to figure out how to read checkpoint file")
             arglist.load = arglist.save_dir
-        if arglist.display or arglist.restore or arglist.benchmark:
+        if arglist.display or arglist.restore or arglist.benchmark \
+           or arglist.movie:
             U.load_state(os.path.join(arglist.load))
+
+        if arglist.movie:
+            movie_writer = None
 
         episode_rewards = [0.0]  # sum of rewards for all agents
         agent_rewards = [[0.0]
@@ -275,6 +294,23 @@ def train(arglist):
                         pickle.dump(agent_info[:-1], fp)
                     break
                 continue
+
+            if arglist.movie:
+                frame, = env.render(mode='rgb_array')
+                if movie_writer is None:
+                    os.makedirs(arglist.movie_dir, exist_ok=True)
+                    movie_name = os.path.join(
+                        arglist.movie_dir,
+                        arglist.exp_name + '_%d.mp4' % episodes_seen)
+                    movie_writer = skvideo.io.FFmpegWriter(movie_name)
+                movie_writer.writeFrame(frame)
+                if done or terminal:
+                    if movie_writer is not None:
+                        movie_writer.close()
+                        movie_writer = None
+                    if train_step > arglist.movie_iters:
+                        # we're done!
+                        break
 
             # for displaying learned policies
             if arglist.display:

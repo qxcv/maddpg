@@ -11,7 +11,8 @@ import tqdm
 
 # all of the supported domains
 DOMAINS = ('adv_cliff', 'adv_gravity', 'adv_race')
-STAGES = ('train', 'benchmark', 'mktable', 'mkcurves', 'mkmontage')
+STAGES = ('train', 'benchmark', 'movie',
+          'mktable', 'mkcurves', 'mkmontage')
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 TRAIN_SCRIPT = os.path.join(THIS_DIR, 'train.py')
 
@@ -32,8 +33,11 @@ parser.add_argument(
     help='number of training runs per configuration')
 
 
-def launch_train(args):
+def launch_train(args, *, xvfb=False):
     cmdline = ['python', TRAIN_SCRIPT] + list(str(a) for a in args)
+    if xvfb:
+        # use virtual X server
+        cmdline = ['xvfb-run', '-a', '-s', '-screen 0 1400x1400x24'] + cmdline
     print('Spawning', ' '.join(cmdline))
     return subprocess.Popen(
         cmdline,
@@ -177,6 +181,65 @@ def stage_benchmark(args):
                 'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
                 '--benchmark'
             ])
+        all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
+    wait_all(all_procs)
+
+
+def stage_movie(args):
+    """Make movies for a few episodes in each test (and train
+    configuration)."""
+    all_procs = []
+    for i in range(args.ntrain):
+        for expt in '', '_nulladv', '_transfer':
+            suff = 'maddpg_policy/snapshot-49200'
+            dom = args.domain
+            maddpg_proc = launch_train([
+                '--scenario',
+                dom + expt,
+                '--num-adversaries',
+                1,
+                '--save-root',
+                'data/%s/maddpg-%d/' % (dom, i),
+                '--exp-name',
+                'results' + expt,
+                '--load',
+                'data/%s/maddpg-%d/%s' % (dom, i, suff),
+                '--movie'
+            ], xvfb=True)
+            ddpg_adv_proc = launch_train([
+                '--scenario',
+                dom + expt,
+                '--num-adversaries',
+                1,
+                '--adv-policy',
+                'ddpg',
+                '--good-policy',
+                'ddpg',
+                '--save-root',
+                'data/%s/ddpg-only-adv-%d/' % (dom, i),
+                '--exp-name',
+                'results' + expt,
+                '--load',
+                'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff),
+                '--movie'
+            ], xvfb=True)
+            ddpg_nulladv_proc = launch_train([
+                '--scenario',
+                dom + expt,
+                '--num-adversaries',
+                1,
+                '--adv-policy',
+                'ddpg',
+                '--good-policy',
+                'ddpg',
+                '--save-root',
+                'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
+                '--exp-name',
+                'results' + expt,
+                '--load',
+                'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
+                '--movie'
+            ], xvfb=True)
         all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
     wait_all(all_procs)
 
