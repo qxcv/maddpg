@@ -244,6 +244,10 @@ def train(arglist):
                 episode_rewards[-1] += rew
                 agent_rewards[i][-1] += rew
 
+            # HACK to keep agent_info[-1], even if episode ends & new list is
+            # appended to agent_info
+            this_agent_info = agent_info[-1]
+
             if done or terminal:
                 obs_n = env.reset()
                 episodes_seen += 1
@@ -251,9 +255,8 @@ def train(arglist):
                 episode_rewards.append(0)
                 for a in agent_rewards:
                     a.append(0)
-                # WTF?! Last step from each episode will be prepended to
-                # beginning of next episode! WTF! okay, adding agent_info HACK
-                # below
+                # this is why this_agent_info is necessary---might add new list
+                # & not be able to append info_n['n'] below
                 agent_info.append([[]])
 
             # increment global step counter
@@ -262,11 +265,7 @@ def train(arglist):
             # for benchmarking learned policies
             if arglist.benchmark:
                 for i, info in enumerate(info_n):
-                    # this is agent_info HACK mentioned above
-                    if done or terminal:
-                        agent_info[-2][i].append(info_n['n'])
-                    else:
-                        agent_info[-1][i].append(info_n['n'])
+                    this_agent_info[i].append(info_n['n'])
                 if train_step > arglist.benchmark_iters and (done or terminal):
                     file_name = os.path.join(
                         arglist.benchmark_dir, arglist.exp_name + '.pkl')
