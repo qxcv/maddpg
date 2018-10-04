@@ -15,8 +15,8 @@ import tqdm
 
 # all of the supported domains
 DOMAINS = ('adv_cliff', 'adv_gravity', 'adv_race')
-STAGES = ('train', 'benchmark', 'movie',
-          'mktables', 'mkcurves', 'mkcomposites')
+STAGES = ('train', 'benchmark', 'movie', 'mktables', 'mkcurves',
+          'mkcomposites')
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 TRAIN_SCRIPT = os.path.join(THIS_DIR, 'train.py')
 
@@ -139,51 +139,24 @@ def stage_benchmark(args):
             suff = 'maddpg_policy/snapshot-49200'
             dom = args.domain
             maddpg_proc = launch_train([
-                '--scenario',
-                dom + '_' + expt,
-                '--num-adversaries',
-                1,
-                '--save-root',
-                'data/%s/maddpg-%d/' % (dom, i),
-                '--exp-name',
-                'results_' + expt,
-                '--load',
-                'data/%s/maddpg-%d/%s' % (dom, i, suff),
-                '--benchmark'
+                '--scenario', dom + '_' + expt, '--num-adversaries', 1,
+                '--save-root', 'data/%s/maddpg-%d/' % (dom, i), '--exp-name',
+                'results_' + expt, '--load',
+                'data/%s/maddpg-%d/%s' % (dom, i, suff), '--benchmark'
             ])
             ddpg_adv_proc = launch_train([
-                '--scenario',
-                dom + '_' + expt,
-                '--num-adversaries',
-                1,
-                '--adv-policy',
-                'ddpg',
-                '--good-policy',
-                'ddpg',
-                '--save-root',
-                'data/%s/ddpg-only-adv-%d/' % (dom, i),
-                '--exp-name',
-                'results_' + expt,
-                '--load',
-                'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff),
-                '--benchmark'
+                '--scenario', dom + '_' + expt, '--num-adversaries', 1,
+                '--adv-policy', 'ddpg', '--good-policy', 'ddpg', '--save-root',
+                'data/%s/ddpg-only-adv-%d/' % (dom, i), '--exp-name',
+                'results_' + expt, '--load',
+                'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff), '--benchmark'
             ])
             ddpg_nulladv_proc = launch_train([
-                '--scenario',
-                dom + '_' + expt,
-                '--num-adversaries',
-                1,
-                '--adv-policy',
-                'ddpg',
-                '--good-policy',
-                'ddpg',
-                '--save-root',
-                'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
-                '--exp-name',
-                'results_' + expt,
-                '--load',
-                'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
-                '--benchmark'
+                '--scenario', dom + '_' + expt, '--num-adversaries', 1,
+                '--adv-policy', 'ddpg', '--good-policy', 'ddpg', '--save-root',
+                'data/%s/ddpg-only-nulladv-%d/' % (dom, i), '--exp-name',
+                'results_' + expt, '--load', 'data/%s/ddpg-only-nulladv-%d/%s'
+                % (dom, i, suff), '--benchmark'
             ])
             all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
     wait_all(all_procs)
@@ -197,53 +170,33 @@ def stage_movie(args):
         for expt in '', '_nulladv', '_transfer':
             suff = 'maddpg_policy/snapshot-49200'
             dom = args.domain
-            maddpg_proc = launch_train([
-                '--scenario',
-                dom + expt,
-                '--num-adversaries',
-                1,
-                '--save-root',
-                'data/%s/maddpg-%d/' % (dom, i),
-                '--exp-name',
-                'results' + expt,
-                '--load',
-                'data/%s/maddpg-%d/%s' % (dom, i, suff),
-                '--movie'
-            ], xvfb=True)
-            ddpg_adv_proc = launch_train([
-                '--scenario',
-                dom + expt,
-                '--num-adversaries',
-                1,
-                '--adv-policy',
-                'ddpg',
-                '--good-policy',
-                'ddpg',
-                '--save-root',
-                'data/%s/ddpg-only-adv-%d/' % (dom, i),
-                '--exp-name',
-                'results' + expt,
-                '--load',
-                'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff),
-                '--movie'
-            ], xvfb=True)
-            ddpg_nulladv_proc = launch_train([
-                '--scenario',
-                dom + expt,
-                '--num-adversaries',
-                1,
-                '--adv-policy',
-                'ddpg',
-                '--good-policy',
-                'ddpg',
-                '--save-root',
-                'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
-                '--exp-name',
-                'results' + expt,
-                '--load',
-                'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
-                '--movie'
-            ], xvfb=True)
+            maddpg_proc = launch_train(
+                [
+                    '--scenario', dom + expt, '--num-adversaries', 1,
+                    '--save-root', 'data/%s/maddpg-%d/' % (dom, i),
+                    '--exp-name', 'results' + expt, '--load',
+                    'data/%s/maddpg-%d/%s' % (dom, i, suff), '--movie'
+                ],
+                xvfb=True)
+            ddpg_adv_proc = launch_train(
+                [
+                    '--scenario', dom + expt, '--num-adversaries', 1,
+                    '--adv-policy', 'ddpg', '--good-policy', 'ddpg',
+                    '--save-root', 'data/%s/ddpg-only-adv-%d/' % (dom, i),
+                    '--exp-name', 'results' + expt, '--load',
+                    'data/%s/ddpg-only-adv-%d/%s' % (dom, i, suff), '--movie'
+                ],
+                xvfb=True)
+            ddpg_nulladv_proc = launch_train(
+                [
+                    '--scenario', dom + expt, '--num-adversaries', 1,
+                    '--adv-policy', 'ddpg', '--good-policy', 'ddpg',
+                    '--save-root', 'data/%s/ddpg-only-nulladv-%d/' % (dom, i),
+                    '--exp-name', 'results' + expt, '--load',
+                    'data/%s/ddpg-only-nulladv-%d/%s' % (dom, i, suff),
+                    '--movie'
+                ],
+                xvfb=True)
             all_procs.extend([maddpg_proc, ddpg_adv_proc, ddpg_nulladv_proc])
             # HACK rate-limiting so I can run this on my crummy laptop
             print('\n\nWAITING\n\n')
@@ -251,9 +204,41 @@ def stage_movie(args):
     wait_all(all_procs)
 
 
+def _get_ep_returns(pkl_data):
+    """Process the huge nested list in one of those results_*.pkl files from
+    benchmark_files."""
+    returns = []
+    # top level of the list: episodes (and a dummy dimension after that which
+    # we remove with the trailing slash in "ep,")
+    for ep, in pkl_data:
+        ret = 0.0
+        # each episode is a series of steps, with info for controller &
+        # adversary (latter is always None for my environments)
+        for controller_info, adv_info in ep:
+            # reward for this step is always the zeroth element
+            ret += controller_info[0]
+        returns.append(ret)
+    return returns
+
 def stage_mktables(args):
     """Make one row out of a table of benchmark results."""
-    raise NotImplementedError()
+    for method in ['ddpg-only-nulladv', 'ddpg-only-adv', 'maddpg']:
+        for expt in 'nulladv', 'transfer':
+            # use args.domain to get scenario
+            # typical path: ./data/adv_race/ddpg-only-adv-7/benchmark_files
+            all_returns = []
+            for i in range(args.ntrain):
+                pkl_path = os.path.join('data', args.domain, '%s-%d' %
+                                        (method, i), 'benchmark_files',
+                                        'results_' + expt + '.pkl')
+                with open(pkl_path, 'rb') as fp:
+                    data = pickle.load(fp)
+                ep_returns = _get_ep_returns(data)
+                all_returns.extend(ep_returns)
+            mu = np.mean(all_returns)
+            sigma = np.std(all_returns)
+            print('%s on %s_%s: %.2f (std %.2f)' % (method, args.domain, expt,
+                                                    mu, sigma))
 
 
 def stage_mkcurves(args):
@@ -270,7 +255,7 @@ def blend_frames(frames, subsample=1):
         frames = frames[::-1][::subsample][::-1]
     med_frame = np.median(frames, axis=0)
     # our job is to find weights for frames st frames average out in the end
-    frame_weights = np.zeros(frames.shape[:3] + (1,))
+    frame_weights = np.zeros(frames.shape[:3] + (1, ))
     for frame_idx, frame in enumerate(frames):
         pixel_dists = np.linalg.norm(frame - med_frame, axis=2)
         diff_pixel_mask = pixel_dists > 0.05
@@ -287,9 +272,7 @@ def blend_frames(frames, subsample=1):
     # normalise frame weights while avoiding division by zero
     frame_weight_sums = frame_weights.sum(axis=0)[None, ...]
     frame_weights = np.divide(
-        frame_weights,
-        frame_weight_sums,
-        where=frame_weight_sums > 0)
+        frame_weights, frame_weight_sums, where=frame_weight_sums > 0)
     # now denormalize so that later frames get brighter than earlier
     # ones
     n = len(frame_weights)
