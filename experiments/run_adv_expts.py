@@ -7,7 +7,9 @@ import os
 import pickle
 import subprocess
 
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import skimage.io
 import skimage.morphology
 import skvideo.io
@@ -220,6 +222,7 @@ def _get_ep_returns(pkl_data):
         returns.append(ret)
     return returns
 
+
 def stage_mktables(args):
     """Make one row out of a table of benchmark results."""
     for method in ['ddpg-only-nulladv', 'ddpg-only-adv', 'maddpg']:
@@ -243,7 +246,41 @@ def stage_mktables(args):
 
 def stage_mkcurves(args):
     """Make per-method learning curves for report."""
-    raise NotImplementedError()
+    # this time we're going to plot everything on the same axes, so we only
+    # make one graph (that we stuff into the current directory)
+    method_labels = {
+        'ddpg-only-nulladv': 'DDPG',
+        'ddpg-only-adv': 'DDPG-adv',
+        'maddpg': 'MADDPG'
+    }
+    methods = sorted(list(method_labels.keys()))
+    xy_dict = {method: ([], []) for method in methods}
+    for method in methods:
+        for i in range(args.ntrain):
+            # example path:
+            # ./data/adv_gravity/ddpg-only-adv-7/learning_curves/results_rewards.pkl
+            pkl_path = os.path.join('data', args.domain, '%s-%d' % (method, i),
+                                    'learning_curves', 'results_rewards.pkl')
+            with open(pkl_path, 'rb') as fp:
+                data = pickle.load(fp)
+            timestamps = data['final_eps_seen']
+            controller_means = data['final_means'][::2]
+            xy_dict[method][0].extend(timestamps)
+            xy_dict[method][1].extend(controller_means)
+    sns.set(style="darkgrid")  # , font_scale=0.8)
+    sns.set_context("paper")
+    figure = plt.figure(figsize=(3, 3))
+    for method, xy in sorted(xy_dict.items()):
+        x, y = xy
+        label = method_labels[method]
+        sns.lineplot(x=x, y=y, label=label)
+    plt.title(args.domain)
+    plt.ylabel('True reward')
+    plt.xlabel('Epochs elapsed')
+    plt.tight_layout()
+    out_path = './data/%s/curves.pdf' % args.domain
+    print('Writing to %s' % out_path)
+    plt.savefig(out_path, bbox_inches='tight')
 
 
 def blend_frames(frames, subsample=1):
